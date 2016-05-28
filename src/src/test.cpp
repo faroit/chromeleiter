@@ -12,7 +12,7 @@
 
 /* #define SAMPLE_RATE  (17932) // Test failure to open with this value. */
 #define SAMPLE_RATE  (44100)
-#define FRAMES_PER_BUFFER (2048)
+#define FRAMES_PER_BUFFER (4096)
 #define NUM_SECONDS     (5)
 #define NUM_CHANNELS    (1)
 
@@ -42,7 +42,7 @@ paTestData;
 */
 
 int note_to_key(int note, int octave) {
-    int k = 10 + (12 * octave) + note;
+    int k = 12 + (12 * octave) + note;
 
     switch(k) {
          case 19 :
