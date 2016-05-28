@@ -12,8 +12,8 @@
 
 /* #define SAMPLE_RATE  (17932) // Test failure to open with this value. */
 #define SAMPLE_RATE  (44100)
-#define FRAMES_PER_BUFFER (1024)
-
+#define FRAMES_PER_BUFFER (2048)
+#define NUM_SECONDS     (5)
 #define NUM_CHANNELS    (1)
 
 /* Select sample format. */
@@ -135,32 +135,31 @@ static int recordCallback( const void *inputBuffer, void *outputBuffer,
                 message.push_back( 11);
                 message.push_back( k );
                 message.push_back( 0 );
-                message.push_back( max((int)data->chromagram[i] - (int)mean - 10, 0) );
+                message.push_back( 2 * max((int)data->chromagram[i] - (int)mean, 0) );
                 message.push_back( 0 );
                 message.push_back( 247 );
 
                 midiout->sendMessage( &message );
 
-                if (mean > 30) {
-                    int r = note_to_key(cd->rootNote, j);
-
-                    message.clear();
-                    message.push_back( 240 );
-                    message.push_back( 0 );
-                    message.push_back( 32 );
-                    message.push_back( 41);
-                    message.push_back( 2 );
-                    message.push_back( 16 );
-                    message.push_back( 11);
-                    message.push_back( r );
-                    message.push_back( 0 );
-                    message.push_back( 0 );
-                    message.push_back( 127 );
-                    message.push_back( 247 );
-
-                    midiout->sendMessage( &message );
-
-                }
+                // if (mean > 10) {
+                //     int r = note_to_key(cd->rootNote, j);
+                //
+                //     message.clear();
+                //     message.push_back( 240 );
+                //     message.push_back( 0 );
+                //     message.push_back( 32 );
+                //     message.push_back( 41);
+                //     message.push_back( 2 );
+                //     message.push_back( 16 );
+                //     message.push_back( 11);
+                //     message.push_back( r );
+                //     message.push_back( 0 );
+                //     message.push_back( 0 );
+                //     message.push_back( 127 );
+                //     message.push_back( 247 );
+                //
+                //     midiout->sendMessage( &message );
+                // }
             }
 
         }
@@ -183,6 +182,10 @@ int main(void)
     PaStream*           stream;
     PaError             err = paNoError;
     paTestData          data;
+    int                 i;
+    int                 totalFrames;
+    int                 numSamples;
+    int                 numBytes;
 
     printf("patest_record.c\n"); fflush(stdout);
 
@@ -200,13 +203,33 @@ int main(void)
     c = new Chromagram(FRAMES_PER_BUFFER,SAMPLE_RATE);
     cd = new ChordDetector();
 
+    data.maxFrameIndex = totalFrames = NUM_SECONDS * SAMPLE_RATE; /* Record for a few seconds. */
+    data.frameIndex = 0;
+    numSamples = totalFrames * NUM_CHANNELS;
+    numBytes = numSamples * sizeof(SAMPLE);
+    data.recordedSamples = (SAMPLE *) malloc( numBytes ); /* From now on, recordedSamples is initialised. */
+    if( data.recordedSamples == NULL )
+    {
+        printf("Could not allocate record array.\n");
+        goto done;
+    }
+    for( i=0; i<numSamples; i++ ) data.recordedSamples[i] = 0;
+
     err = Pa_Initialize();
     if( err != paNoError ) goto done;
 
-    inputParameters.device = Pa_GetDefaultInputDevice(); /* default input device */
+    inputParameters.device = 2; /* default input device */
     if (inputParameters.device == paNoDevice) {
         fprintf(stderr,"Error: No default input device.\n");
         goto done;
+    }
+    const   PaDeviceInfo *deviceInfo;
+    int numDevices;
+
+    numDevices = Pa_GetDeviceCount();
+    for( i=0; i<numDevices; i++ )
+    {
+            deviceInfo = Pa_GetDeviceInfo( i );
     }
     inputParameters.channelCount = 2;                    /* stereo input */
     inputParameters.sampleFormat = PA_SAMPLE_TYPE;
