@@ -263,6 +263,7 @@ void Chromagram::calculateMagnitudeSpectrum()
     {
         magnitudeSpectrum[i] = sqrt(pow(complexOut[i][0],2) + pow(complexOut[i][1],2));
         magnitudeSpectrum[i] = sqrt(magnitudeSpectrum[i]);
+        magnitudeSpectrum[i] *= magnitudeSpectrum[i];
     }
 #endif
 

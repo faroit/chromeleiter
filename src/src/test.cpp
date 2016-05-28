@@ -2,16 +2,18 @@
 #include <stdlib.h>
 #include "portaudio.h"
 #include "Chromagram.h"
+#include "ChordDetector.h"
 #include <iostream>
 #include <cstdlib>
+#include <numeric>
 #include "RtMidi.h"
 
 #define max(a,b) (a>b?a:b)
 
 /* #define SAMPLE_RATE  (17932) // Test failure to open with this value. */
 #define SAMPLE_RATE  (44100)
-#define FRAMES_PER_BUFFER (4096)
-#define NUM_SECONDS     (5)
+#define FRAMES_PER_BUFFER (1024)
+
 #define NUM_CHANNELS    (1)
 
 /* Select sample format. */
@@ -23,7 +25,8 @@ typedef float SAMPLE;
 #endif
 
 Chromagram* c = 0;
-
+ChordDetector* cd = 0;
+RtMidiOut *midiout = 0;
 typedef struct
 {
     int          frameIndex;  /* Index into sample array. */
@@ -37,6 +40,28 @@ paTestData;
 ** It may be called at interrupt level on some machines so don't do anything
 ** that could mess up the system like calling malloc() or free().
 */
+
+int note_to_key(int note, int octave) {
+    int k = 10 + (12 * octave) + note;
+
+    switch(k) {
+         case 19 :
+         case 29 :
+         case 39 :
+         case 49 :
+         case 59 :
+         case 69 :
+         case 79 :
+         case 89 :
+            k = k+2;
+            break;
+      }
+      if ( k % 10 == 0 ) {
+          k++;
+      }
+      return k;
+}
+
 static int recordCallback( const void *inputBuffer, void *outputBuffer,
                            unsigned long framesPerBuffer,
                            const PaStreamCallbackTimeInfo* timeInfo,
@@ -90,6 +115,55 @@ static int recordCallback( const void *inputBuffer, void *outputBuffer,
     c->processAudioFrame(frame);
     if (c->isReady()) {
         data->chromagram = c->getChromagram();
+        std::vector<unsigned char> message;
+
+        for (int i = 0;i < 12;i++)
+        {
+            cd->detectChord(data->chromagram);
+
+            for (int j = 0; j < 7; j++) {
+                double sum = std::  accumulate(data->chromagram.begin(), data->chromagram.end(), 0.0);
+                double mean = sum / data->chromagram.size();
+                int k = note_to_key(i, j);
+                message.clear();
+                message.push_back( 240 );
+                message.push_back( 0 );
+                message.push_back( 32 );
+                message.push_back( 41);
+                message.push_back( 2 );
+                message.push_back( 16 );
+                message.push_back( 11);
+                message.push_back( k );
+                message.push_back( 0 );
+                message.push_back( max((int)data->chromagram[i] - (int)mean - 10, 0) );
+                message.push_back( 0 );
+                message.push_back( 247 );
+
+                midiout->sendMessage( &message );
+
+                if (mean > 30) {
+                    int r = note_to_key(cd->rootNote, j);
+
+                    message.clear();
+                    message.push_back( 240 );
+                    message.push_back( 0 );
+                    message.push_back( 32 );
+                    message.push_back( 41);
+                    message.push_back( 2 );
+                    message.push_back( 16 );
+                    message.push_back( 11);
+                    message.push_back( r );
+                    message.push_back( 0 );
+                    message.push_back( 0 );
+                    message.push_back( 127 );
+                    message.push_back( 247 );
+
+                    midiout->sendMessage( &message );
+
+                }
+            }
+
+        }
     }
 
     return finished;
@@ -100,6 +174,7 @@ static int recordCallback( const void *inputBuffer, void *outputBuffer,
 ** that could mess up the system like calling malloc() or free().
 */
 
+
 /*******************************************************************/
 int main(void);
 int main(void)
@@ -108,17 +183,11 @@ int main(void)
     PaStream*           stream;
     PaError             err = paNoError;
     paTestData          data;
-    int                 i;
-    int                 totalFrames;
-    int                 numSamples;
-    int                 numBytes;
-    SAMPLE              max, val;
-    double              average;
 
     printf("patest_record.c\n"); fflush(stdout);
 
 
-    RtMidiOut *midiout = new RtMidiOut();
+    midiout = new RtMidiOut();
 
     // Check available ports.
     unsigned int nPorts = midiout->getPortCount();
@@ -127,22 +196,9 @@ int main(void)
     }
     // Open first available port.
     midiout->openPort( 1 );
-    std::vector<unsigned char> message;
 
     c = new Chromagram(FRAMES_PER_BUFFER,SAMPLE_RATE);
-
-
-    data.maxFrameIndex = totalFrames = NUM_SECONDS * SAMPLE_RATE; /* Record for a few seconds. */
-    data.frameIndex = 0;
-    numSamples = totalFrames * NUM_CHANNELS;
-    numBytes = numSamples * sizeof(SAMPLE);
-    data.recordedSamples = (SAMPLE *) malloc( numBytes ); /* From now on, recordedSamples is initialised. */
-    if( data.recordedSamples == NULL )
-    {
-        printf("Could not allocate record array.\n");
-        goto done;
-    }
-    for( i=0; i<numSamples; i++ ) data.recordedSamples[i] = 0;
+    cd = new ChordDetector();
 
     err = Pa_Initialize();
     if( err != paNoError ) goto done;
@@ -173,59 +229,15 @@ int main(void)
     if( err != paNoError ) goto done;
     printf("\n=== Now recording!! Please speak into the microphone. ===\n"); fflush(stdout);
 
-    while( ( err = Pa_IsStreamActive( stream ) ) == 1 )
+    while( ( err = Pa_IsStreamActive( stream ) ) == 1)
     {
-        Pa_Sleep(100);
-        printf("\n");
-
-        for (int i = 0;i < 12;i++)
-        {
-            printf("%f, ", data.chromagram[i] );
-
-            for (int j = 0; j < 6; j++) {
-                message.clear();
-                message.push_back( 240 );
-                message.push_back( 0 );
-                message.push_back( 32 );
-                message.push_back( 41);
-                message.push_back( 2 );
-                message.push_back( 16 );
-                message.push_back( 11);
-                message.push_back( 11 + (12 * j + i));
-                message.push_back( max(2 * ((int)data.chromagram[i] - 10), 0) );
-                message.push_back( max(2 * ((int)data.chromagram[i] - 10), 0) );
-                message.push_back( 0 );
-                message.push_back( 247 );
-
-                midiout->sendMessage( &message );
-            }
-
-        }
+        Pa_Sleep(1000);
 
     }
     if( err < 0 ) goto done;
 
     err = Pa_CloseStream( stream );
     if( err != paNoError ) goto done;
-
-    /* Measure maximum peak amplitude. */
-    max = 0;
-    average = 0.0;
-    for( i=0; i<numSamples; i++ )
-    {
-        val = data.recordedSamples[i];
-        if( val < 0 ) val = -val; /* ABS */
-        if( val > max )
-        {
-            max = val;
-        }
-        average += val;
-    }
-
-    average = average / (double)numSamples;
-
-    printf("sample max amplitude = "PRINTF_S_FORMAT"\n", max );
-    printf("sample average = %lf\n", average );
 
 done:
     Pa_Terminate();
