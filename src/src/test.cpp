@@ -7,6 +7,10 @@
 #include <cstdlib>
 #include <numeric>
 #include "RtMidi.h"
+#include <cstdlib>
+#include <string>
+
+using namespace std;
 
 #define max(a,b) (a>b?a:b)
 
@@ -129,8 +133,8 @@ static int recordCallback( const void *inputBuffer, void *outputBuffer,
                 int m = cd->quality == 0 ? 2 : 0;
 
                 r = m * 8 * max((int)data->chromagram[i] - (int)mean, 0);
-                g = 8 * max((int)data->chromagram[i] - (int)mean, 0);
-                b = 0;
+                b = 8 * max((int)data->chromagram[i] - (int)mean, 0);
+                g = 0;
                 message.clear();
                 message.push_back( 240 );
                 message.push_back( 0 );
@@ -147,7 +151,7 @@ static int recordCallback( const void *inputBuffer, void *outputBuffer,
 
                 midiout->sendMessage( &message );
             }
-            printf("%2d, ", g);
+            printf("%3d, ", b);
 
         }
         printf("\n");
@@ -163,8 +167,7 @@ static int recordCallback( const void *inputBuffer, void *outputBuffer,
 
 
 /*******************************************************************/
-int main(void);
-int main(void)
+int main(int argc, char **argv)
 {
     PaStreamParameters  inputParameters;
     PaStream*           stream;
@@ -206,7 +209,7 @@ int main(void)
     err = Pa_Initialize();
     if( err != paNoError ) goto done;
 
-    inputParameters.device = 2; /* default input device */
+    inputParameters.device = stoi(argv[1]); /* default input device */
     if (inputParameters.device == paNoDevice) {
         fprintf(stderr,"Error: No default input device.\n");
         goto done;
