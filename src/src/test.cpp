@@ -12,7 +12,7 @@
 
 /* #define SAMPLE_RATE  (17932) // Test failure to open with this value. */
 #define SAMPLE_RATE  (44100)
-#define FRAMES_PER_BUFFER (512)
+#define FRAMES_PER_BUFFER (2048)
 #define NUM_SECONDS     (5)
 #define NUM_CHANNELS    (1)
 
@@ -49,7 +49,6 @@ paTestData;
 int note_to_key(int note, int octave) {
     // needs to simplified
     int k = 12 + (12 * octave) + note;
-
     switch(k) {
          case 19 :
          case 29 :
@@ -59,11 +58,7 @@ int note_to_key(int note, int octave) {
          case 69 :
          case 79 :
          case 89 :
-            k = k+2;
-            break;
-      }
-      if ( k % 10 == 0 ) {
-          k++;
+            k += 1;
       }
       return k;
 }
@@ -133,8 +128,8 @@ static int recordCallback( const void *inputBuffer, void *outputBuffer,
                 int r = note_to_key(cd->rootNote, j);
                 int m = cd->quality == 0 ? 2 : 0;
 
-                r = m * 2 * max((int)data->chromagram[i] - (int)mean, 0);
-                g = 2 * max((int)data->chromagram[i] - (int)mean, 0);
+                r = m * 8 * max((int)data->chromagram[i] - (int)mean, 0);
+                g = 8 * max((int)data->chromagram[i] - (int)mean, 0);
                 b = 0;
                 message.clear();
                 message.push_back( 240 );
