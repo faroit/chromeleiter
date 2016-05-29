@@ -12,7 +12,7 @@
 
 /* #define SAMPLE_RATE  (17932) // Test failure to open with this value. */
 #define SAMPLE_RATE  (44100)
-#define FRAMES_PER_BUFFER (4096)
+#define FRAMES_PER_BUFFER (512)
 #define NUM_SECONDS     (5)
 #define NUM_CHANNELS    (1)
 
@@ -27,6 +27,11 @@ typedef float SAMPLE;
 Chromagram* c = 0;
 ChordDetector* cd = 0;
 RtMidiOut *midiout = 0;
+
+int r = 0;
+int g = 0;
+int b = 0;
+
 typedef struct
 {
     int          frameIndex;  /* Index into sample array. */
@@ -42,6 +47,7 @@ paTestData;
 */
 
 int note_to_key(int note, int octave) {
+    // needs to simplified
     int k = 12 + (12 * octave) + note;
 
     switch(k) {
@@ -120,11 +126,16 @@ static int recordCallback( const void *inputBuffer, void *outputBuffer,
         for (int i = 0;i < 12;i++)
         {
             cd->detectChord(data->chromagram);
-
             for (int j = 0; j < 7; j++) {
                 double sum = std::  accumulate(data->chromagram.begin(), data->chromagram.end(), 0.0);
                 double mean = sum / data->chromagram.size();
                 int k = note_to_key(i, j);
+                int r = note_to_key(cd->rootNote, j);
+                int m = cd->quality == 0 ? 2 : 0;
+
+                r = m * 2 * max((int)data->chromagram[i] - (int)mean, 0);
+                g = 2 * max((int)data->chromagram[i] - (int)mean, 0);
+                b = 0;
                 message.clear();
                 message.push_back( 240 );
                 message.push_back( 0 );
@@ -134,35 +145,17 @@ static int recordCallback( const void *inputBuffer, void *outputBuffer,
                 message.push_back( 16 );
                 message.push_back( 11);
                 message.push_back( k );
-                message.push_back( 0 );
-                message.push_back( 2 * max((int)data->chromagram[i] - (int)mean, 0) );
-                message.push_back( 0 );
+                message.push_back( r );
+                message.push_back( g );
+                message.push_back( b );
                 message.push_back( 247 );
 
                 midiout->sendMessage( &message );
-
-                // if (mean > 10) {
-                //     int r = note_to_key(cd->rootNote, j);
-                //
-                //     message.clear();
-                //     message.push_back( 240 );
-                //     message.push_back( 0 );
-                //     message.push_back( 32 );
-                //     message.push_back( 41);
-                //     message.push_back( 2 );
-                //     message.push_back( 16 );
-                //     message.push_back( 11);
-                //     message.push_back( r );
-                //     message.push_back( 0 );
-                //     message.push_back( 0 );
-                //     message.push_back( 127 );
-                //     message.push_back( 247 );
-                //
-                //     midiout->sendMessage( &message );
-                // }
             }
+            printf("%2d, ", g);
 
         }
+        printf("\n");
     }
 
     return finished;
@@ -254,9 +247,10 @@ int main(void)
 
     while( ( err = Pa_IsStreamActive( stream ) ) == 1)
     {
-        Pa_Sleep(1000);
+        Pa_Sleep(200);
 
     }
+
     if( err < 0 ) goto done;
 
     err = Pa_CloseStream( stream );
