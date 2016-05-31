@@ -12,6 +12,13 @@ Electronic Musician
 
 The Chromeleiter helps you to not embarrass yourself anymore. It shows you the pitches/notes of what the others are currently playing, and enables you to play along with them without knowing what the are actually playing. Essentially it is a realtime visualisation of harmonic pitch class profiles or __chroma__ vector mapped to the chromatic keyboard mode of a Novation Launchpad / Ableton Push device. It lights up the pads of the corresponding notes that are currently used by other players as well as an chord estimate. It is a provided as a C++ command line application that listens to the Audio input and connects to the Launchpad via MIDI.
 
+## Usage
+
+```./Chromeleiter 0```
+
+runs the chromeleiter application and listens to audio on the first audio input
+device.
+
 ## How does it work
 
  - Audio signal is captured from microphone
@@ -25,9 +32,12 @@ The Chromeleiter helps you to not embarrass yourself anymore. It shows you the p
 * [Portaudio](http://www.portaudio.com)
 * [RTMidi](https://www.music.mcgill.ca/~gary/rtmidi/)
 
-## Source Code
+## Compile on OS X
 
-* https://github.com/faroit/chromeleiter
+1. Install dependencies with homebrew
+  - `portaudio`
+
+2. Run ```make```
 
 ## References
 
