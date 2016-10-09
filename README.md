@@ -1,5 +1,7 @@
 # The Chromeleiter
 
+![img_2401](https://cloud.githubusercontent.com/assets/72940/19220516/561b7c4e-8e2f-11e6-9c99-3cd7b599a5d6.JPG)
+
 Electronic Musician playing live in a Jazz band:
 > "Hey that sounds cool, what are you playing?"
 
